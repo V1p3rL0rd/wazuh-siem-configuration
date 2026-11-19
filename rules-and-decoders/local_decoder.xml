@@ -1,0 +1,20 @@
+<!-- Local Decoders for Wazuh SIEM -->
+<!-- File: /var/ossec/etc/decoders/local_decoder.xml -->
+
+<!-- Example Custom Application Decoder (Generic JSON or Key-Value) -->
+<decoder name="custom-app">
+  <prematch>^custom-app: </prematch>
+</decoder>
+
+<decoder name="custom-app-fields">
+  <parent>custom-app</parent>
+  <regex offset="after_parent">^(\S+) action=(\S+) user=(\S+) src_ip=(\S+)</regex>
+  <order>status, action, srcuser, srcip</order>
+</decoder>
+
+<!-- Example Custom Auditd Auxiliary Decoder -->
+<decoder name="custom-auditd-tag">
+  <parent>auditd</parent>
+  <regex>key="(\S+)"</regex>
+  <order>audit.key</order>
+</decoder>

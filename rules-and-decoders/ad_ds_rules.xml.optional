@@ -1,0 +1,61 @@
+<!-- Optional Active Directory Domain Services (AD DS) Advanced Threat Detection Rules -->
+<group name="local,ad_ds_detection,">
+
+  <!-- DCSync Attack: Non-DC account requesting AD Directory Replication (Event ID 4662) -->
+  <rule id="100030" level="14">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.properties" type="pcre2">(?i)1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|89e4b0e0-44d3-11d2-9032-00c04fc2dcd2</field>
+    <field name="win.eventdata.subjectUserName" negate="yes" type="pcre2">.*\$</field>
+    <description>CRITICAL: Potential DCSync attack detected! Non-machine account $(win.eventdata.subjectUserName) requested AD replication rights</description>
+    <mitre>
+      <id>T1003.006</id>
+    </mitre>
+  </rule>
+
+  <!-- Kerberoasting: TGS Ticket Request with RC4 Encryption (Event ID 4769) -->
+  <rule id="100031" level="12">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <field name="win.eventdata.serviceName" negate="yes" type="pcre2">(?i)krbtgt|\$$</field>
+    <description>Potential Kerberoasting attack: Kerberos TGS requested with legacy RC4 (0x17) encryption for service: $(win.eventdata.serviceName)</description>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+  </rule>
+
+  <!-- AS-REP Roasting: Pre-Authentication Disabled / Failed (Event ID 4771) -->
+  <rule id="100032" level="11">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4771$</field>
+    <field name="win.eventdata.failureCode">^0x18$</field>
+    <description>Kerberos pre-authentication failed (Code 0x18 - Wrong password / AS-REP Roasting attempt) for user: $(win.eventdata.targetUserName)</description>
+    <mitre>
+      <id>T1558.004</id>
+    </mitre>
+  </rule>
+
+  <!-- NTLM Password Spraying across Active Directory (Event ID 4776) -->
+  <rule id="100033" level="11" frequency="10" timeframe="120">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4776$</field>
+    <field name="win.eventdata.status">^0xC000006A$</field>
+    <description>NTLM password spray or brute-force attack detected on Domain Controller</description>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Active Directory Object Modification / SID History Injection (Event ID 5136) -->
+  <rule id="100034" level="12">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^5136$</field>
+    <field name="win.eventdata.attributeLDAPDisplayName" type="pcre2">(?i)sIDHistory|adminCount</field>
+    <description>Suspicious Active Directory attribute modification: $(win.eventdata.attributeLDAPDisplayName) on $(win.eventdata.objectDN)</description>
+    <mitre>
+      <id>T1134.005</id>
+    </mitre>
+  </rule>
+
+</group>

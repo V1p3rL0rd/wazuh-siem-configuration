@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.9.2
+    container_name: wazuh-indexer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9200:9200"
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms${INDEXER_JVM_HEAP:-2g} -Xmx${INDEXER_JVM_HEAP:-2g}"
+      - "discovery.type=single-node"
+      - "network.host=0.0.0.0"
+      - "plugins.security.ssl.http.enabled=true"
+      - "plugins.security.ssl.transport.enabled=true"
+      - "plugins.security.ssl.http.pemcert_filepath=/usr/share/wazuh-indexer/config/certs/indexer.pem"
+      - "plugins.security.ssl.http.pemkey_filepath=/usr/share/wazuh-indexer/config/certs/indexer-key.pem"
+      - "plugins.security.ssl.http.pemtrustedcas_filepath=/usr/share/wazuh-indexer/config/certs/root-ca.pem"
+      - "plugins.security.ssl.transport.pemcert_filepath=/usr/share/wazuh-indexer/config/certs/indexer.pem"
+      - "plugins.security.ssl.transport.pemkey_filepath=/usr/share/wazuh-indexer/config/certs/indexer-key.pem"
+      - "plugins.security.ssl.transport.pemtrustedcas_filepath=/usr/share/wazuh-indexer/config/certs/root-ca.pem"
+      - "plugins.security.authcz.admin_dn=CN=admin,OU=Wazuh,O=Wazuh,L=California,C=US"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./certs/indexer.pem:/usr/share/wazuh-indexer/config/certs/indexer.pem:ro
+      - ./certs/indexer-key.pem:/usr/share/wazuh-indexer/config/certs/indexer-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/config/certs/root-ca.pem:ro
+    networks:
+      - wazuh-net
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.9.2
+    container_name: wazuh-manager
+    restart: unless-stopped
+    depends_on:
+      - wazuh-indexer
+    ports:
+      - "1514:1514/tcp"
+      - "1514:1514/udp"
+      - "1515:1515/tcp"
+      - "514:514/udp"
+      - "127.0.0.1:55000:55000"
+    environment:
+      - "INDEXER_URL=https://wazuh-indexer:9200"
+      - "INDEXER_USERNAME=admin"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+      - "FILEBEAT_SSL_VERIFICATION_MODE=full"
+      - "SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem"
+      - "SSL_CERTIFICATE=/etc/ssl/filebeat.pem"
+      - "SSL_KEY=/etc/ssl/filebeat-key.pem"
+      - "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-<REDACTED_TELEGRAM_BOT_TOKEN>}"
+      - "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-<REDACTED_TELEGRAM_CHAT_ID>}"
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-etc:/var/ossec/etc
+      - ../rules-and-decoders/local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+      - ../rules-and-decoders/local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml:ro
+      - ../integrations/telegram/custom-telegram:/var/ossec/integrations/custom-telegram:ro
+      - ../integrations/telegram/custom-telegram.py:/var/ossec/integrations/custom-telegram.py:ro
+      - ./certs/filebeat.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/filebeat-key.pem:/etc/ssl/filebeat-key.pem:ro
+      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+    networks:
+      - wazuh-net
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.9.2
+    container_name: wazuh-dashboard
+    restart: unless-stopped
+    depends_on:
+      - wazuh-indexer
+    ports:
+      - "443:5601"
+    environment:
+      - "INDEXER_URL=https://wazuh-indexer:9200"
+      - "INDEXER_USERNAME=admin"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+      - "WAZUH_API_URL=https://wazuh-manager:55000"
+      - "API_USERNAME=wazuh-wui"
+      - "API_PASSWORD=${API_PASSWORD:-<REDACTED_API_PASSWORD>}"
+      - "OPENSEARCH_SECURITY_SSL_HTTP_ENABLED=true"
+    volumes:
+      - ./certs/dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/usr/share/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+      - wazuh-dashboard-custom:/usr/share/wazuh-dashboard/data
+    networks:
+      - wazuh-net
+
+volumes:
+  wazuh-indexer-data:
+  wazuh-manager-data:
+  wazuh-manager-etc:
+  wazuh-dashboard-custom:
+
+networks:
+  wazuh-net:
+    driver: bridge
