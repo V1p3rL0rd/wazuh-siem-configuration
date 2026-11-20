@@ -11,7 +11,7 @@
 #              saves it to FILE and exports KEY. Non-interactive run with a
 #              missing value and no DEFAULT is a hard error.
 # Values may not contain whitespace, quotes, backslash, '$' or '#': they are
-# read by bash, docker compose and python without quoting rules in common.
+# read by bash and python without quoting rules in common.
 # ==============================================================================
 
 env_init() {

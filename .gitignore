@@ -13,21 +13,12 @@
 *.csr
 *.crt
 *.cert
-docker/certs/*.pem
-docker/certs/*.csr
-docker/certs/*.srl
 
 # Cache and temporary runtime files
 *cache.json
 /tmp/
 *.tmp
 *.log
-
-# Docker volume data mounts (if created locally)
-wazuh-indexer-data/
-wazuh-manager-data/
-wazuh-manager-etc/
-wazuh-dashboard-custom/
 
 # OS-generated metadata
 .DS_Store

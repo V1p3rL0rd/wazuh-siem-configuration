@@ -43,7 +43,7 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 
 # Auto-detect Wazuh Manager IP/FQDN from .env if not supplied
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$envFileCandidates = @((Join-Path $scriptDir "..\..\.env"), (Join-Path $scriptDir "..\..\docker\.env"))
+$envFileCandidates = @((Join-Path $scriptDir "..\..\.env"))
 if (-not $AgentVersion) {
     $AgentVersion = "4.9.2"
     foreach ($candidate in $envFileCandidates) {
@@ -56,9 +56,6 @@ if (-not $AgentVersion) {
 
 if (-not $WazuhManager) {
     $possibleEnv = Join-Path $scriptDir "..\..\.env"
-    if (-not (Test-Path $possibleEnv)) {
-        $possibleEnv = Join-Path $scriptDir "..\..\docker\.env"
-    }
     if (Test-Path $possibleEnv) {
         $envLines = Get-Content $possibleEnv
         foreach ($line in $envLines) {

@@ -22,9 +22,6 @@ echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.d/99-wazuh.conf
 
 # 2. Check required port bindings
 sudo ss -tulpn | grep -E ':(443|1514|1515|9200|55000)\s'
-
-# 3. Verify Docker runtime and compose plugin (if using containerized stack)
-docker --version && docker compose version
 ```
 
 ---
@@ -49,7 +46,7 @@ sudo bash setup.sh
 8. Dispatches an end-to-end verification alert directly to Telegram.
 
 ### Step 2.2: Environment Configuration (.env)
-All site-specific values (manager IP/FQDN, Telegram credentials, passwords, versions) live in a single `.env` at the repository root. You do not need to edit it by hand: `sudo bash setup.sh` (host install) and `docker/start.sh` (Docker) ask only for values that are missing or still placeholders, validate them and save the file with `chmod 600`. Existing keys are never removed.
+All site-specific values (manager IP/FQDN, Telegram credentials, passwords, versions) live in a single `.env` at the repository root. You do not need to edit it by hand: `sudo bash setup.sh` asks only for values that are missing or still placeholders, validate them and save the file with `chmod 600`. Existing keys are never removed.
 
 To pre-seed the file (e.g. for unattended runs, where missing values are a hard error):
 ```bash
@@ -57,7 +54,7 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Variables: `WAZUH_SERVER_IP`, `WAZUH_SERVER_FQDN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `INDEXER_PASSWORD`, `API_PASSWORD` (Docker), `INDEXER_JVM_HEAP` (Docker, default `2g`), `WAZUH_VERSION` (default `4.9.2`, also used to pin the agent version). Values must not contain whitespace, quotes, `\`, `$` or `#`.
+Variables: `WAZUH_SERVER_IP`, `WAZUH_SERVER_FQDN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `INDEXER_PASSWORD` (optional), `WAZUH_VERSION` (default `4.9.2`, also used to pin the agent version). Values must not contain whitespace, quotes, `\`, `$` or `#`.
 
 ---
 

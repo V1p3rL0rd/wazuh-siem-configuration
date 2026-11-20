@@ -76,7 +76,7 @@ flowchart TD
 .
 ├── setup.sh                         # Master turnkey installer & self-healing configuration script
 ├── lib/env.sh                       # Shared helper: reads/prompts/saves values in the single .env
-├── .env.example                     # Environment template (setup.sh / docker/start.sh prompt for missing values)
+├── .env.example                     # Environment template (setup.sh prompts for missing values)
 ├── .gitignore                       # Safeguard preventing .env, keys, and logs from Git commits
 ├── README.md                        # Documentation and architecture guide
 ├── server-config/                   # Reference server configurations

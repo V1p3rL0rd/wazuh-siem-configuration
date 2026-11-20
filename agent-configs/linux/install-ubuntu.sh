@@ -6,7 +6,6 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 ENV_FILE="${DIR}/../../.env"
-[ ! -f "${ENV_FILE}" ] && ENV_FILE="${DIR}/../../docker/.env"
 
 # Agent version must be <= manager version; taken from .env (WAZUH_VERSION), default 4.9.2
 AGENT_VERSION="4.9.2"
