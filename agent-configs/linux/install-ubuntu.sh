@@ -8,6 +8,13 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 ENV_FILE="${DIR}/../../.env"
 [ ! -f "${ENV_FILE}" ] && ENV_FILE="${DIR}/../../docker/.env"
 
+# Agent version must be <= manager version; taken from .env (WAZUH_VERSION), default 4.9.2
+AGENT_VERSION="4.9.2"
+if [ -f "${ENV_FILE}" ]; then
+    ENV_VER=$(grep -E '^WAZUH_VERSION=' "${ENV_FILE}" | tail -n1 | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ' || true)
+    [ -n "${ENV_VER}" ] && AGENT_VERSION="${ENV_VER}"
+fi
+
 # Auto-detect Wazuh Manager IP/FQDN from .env if present and not provided via CLI
 DEFAULT_MANAGER="<WAZUH_MANAGER_IP>"
 if [ -f "${ENV_FILE}" ]; then
@@ -17,6 +24,11 @@ fi
 
 WAZUH_MANAGER="${1:-${DEFAULT_MANAGER}}"
 AGENT_NAME="${2:-$(hostname)}"
+
+if [ "${WAZUH_MANAGER}" = "<WAZUH_MANAGER_IP>" ] && [ -t 0 ]; then
+    read -r -p "IP или FQDN Wazuh Manager: " WAZUH_MANAGER
+    WAZUH_MANAGER="${WAZUH_MANAGER:-<WAZUH_MANAGER_IP>}"
+fi
 
 if [ "$EUID" -ne 0 ]; then
     echo "[ERROR] This script must be run as root (or with sudo)." >&2
@@ -40,7 +52,7 @@ echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4
 apt-get update -y
 
 echo "==> 2. Installing Wazuh Agent..."
-WAZUH_MANAGER="${WAZUH_MANAGER}" WAZUH_AGENT_NAME="${AGENT_NAME}" apt-get install -y wazuh-agent
+WAZUH_MANAGER="${WAZUH_MANAGER}" WAZUH_AGENT_NAME="${AGENT_NAME}" apt-get install -y "wazuh-agent=${AGENT_VERSION}-1"
 
 echo "==> 3. Applying optimized ossec.conf configuration..."
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"

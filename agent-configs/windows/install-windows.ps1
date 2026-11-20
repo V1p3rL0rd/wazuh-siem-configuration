@@ -5,14 +5,16 @@
     Downloads and installs Wazuh Agent silently, applies optimized baseline ossec.conf,
     and starts the Wazuh service.
 .PARAMETER WazuhManager
-    IP address or FQDN of the Wazuh Manager (e.g. "10.100.68.68" or "wazuh.garuda.net").
+    IP address or FQDN of the Wazuh Manager (e.g. "192.0.2.10" or "wazuh.example.com").
 .PARAMETER AgentName
     Custom name for the agent (defaults to $env:COMPUTERNAME).
+.PARAMETER AgentVersion
+    Wazuh Agent version (must be <= manager version). Defaults to WAZUH_VERSION from .env, else 4.9.2.
 .PARAMETER InstallSysmon
     Optional switch to install Microsoft Sysmon alongside Wazuh.
 .EXAMPLE
-    .\install-windows.ps1 -WazuhManager "10.100.68.68"
-    .\install-windows.ps1 -WazuhManager "wazuh.garuda.net"
+    .\install-windows.ps1 -WazuhManager "192.0.2.10"
+    .\install-windows.ps1 -WazuhManager "wazuh.example.com"
 #>
 
 [CmdletBinding()]
@@ -22,6 +24,9 @@ param (
 
     [Parameter(Mandatory = $false)]
     [string]$AgentName = $env:COMPUTERNAME,
+
+    [Parameter(Mandatory = $false)]
+    [string]$AgentVersion,
 
     [Parameter(Mandatory = $false)]
     [switch]$InstallSysmon
@@ -38,6 +43,17 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 
 # Auto-detect Wazuh Manager IP/FQDN from .env if not supplied
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$envFileCandidates = @((Join-Path $scriptDir "..\..\.env"), (Join-Path $scriptDir "..\..\docker\.env"))
+if (-not $AgentVersion) {
+    $AgentVersion = "4.9.2"
+    foreach ($candidate in $envFileCandidates) {
+        if (Test-Path $candidate) {
+            $verLine = Select-String -Path $candidate -Pattern "^WAZUH_VERSION=(.+)$" | Select-Object -Last 1
+            if ($verLine) { $AgentVersion = $verLine.Matches[0].Groups[1].Value.Trim("'`" "); break }
+        }
+    }
+}
+
 if (-not $WazuhManager) {
     $possibleEnv = Join-Path $scriptDir "..\..\.env"
     if (-not (Test-Path $possibleEnv)) {
@@ -55,7 +71,11 @@ if (-not $WazuhManager) {
 }
 
 if (-not $WazuhManager) {
-    Write-Error "Please supply -WazuhManager parameter (e.g. -WazuhManager '10.100.68.68' or 'wazuh.garuda.net')."
+    $WazuhManager = Read-Host "Wazuh Manager IP or FQDN"
+}
+
+if (-not $WazuhManager) {
+    Write-Error "Please supply -WazuhManager parameter (e.g. -WazuhManager '192.0.2.10' or 'wazuh.example.com')."
     exit 1
 }
 
@@ -93,7 +113,7 @@ if ($InstallSysmon) {
 
 Write-Host "==> [1/3] Downloading Wazuh Agent MSI..." -ForegroundColor Cyan
 $wazuhMsi = Join-Path $workDir "wazuh-agent.msi"
-$wazuhMsiUrl = "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.2-1.msi"
+$wazuhMsiUrl = "https://packages.wazuh.com/4.x/windows/wazuh-agent-$AgentVersion-1.msi"
 Invoke-WebRequest -Uri $wazuhMsiUrl -OutFile $wazuhMsi
 
 Write-Host "==> [2/3] Installing Wazuh Agent silently..." -ForegroundColor Cyan

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   wazuh-indexer:
-    image: wazuh/wazuh-indexer:4.9.2
+    image: wazuh/wazuh-indexer:${WAZUH_VERSION:-4.9.2}
     container_name: wazuh-indexer
     restart: unless-stopped
     ports:
@@ -20,7 +18,7 @@ services:
       - "plugins.security.ssl.transport.pemkey_filepath=/usr/share/wazuh-indexer/config/certs/indexer-key.pem"
       - "plugins.security.ssl.transport.pemtrustedcas_filepath=/usr/share/wazuh-indexer/config/certs/root-ca.pem"
       - "plugins.security.authcz.admin_dn=CN=admin,OU=Wazuh,O=Wazuh,L=California,C=US"
-      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:?INDEXER_PASSWORD is not set in .env (run docker/start.sh)}"
     ulimits:
       memlock:
         soft: -1
@@ -37,7 +35,7 @@ services:
       - wazuh-net
 
   wazuh-manager:
-    image: wazuh/wazuh-manager:4.9.2
+    image: wazuh/wazuh-manager:${WAZUH_VERSION:-4.9.2}
     container_name: wazuh-manager
     restart: unless-stopped
     depends_on:
@@ -51,13 +49,13 @@ services:
     environment:
       - "INDEXER_URL=https://wazuh-indexer:9200"
       - "INDEXER_USERNAME=admin"
-      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:?INDEXER_PASSWORD is not set in .env (run docker/start.sh)}"
       - "FILEBEAT_SSL_VERIFICATION_MODE=full"
       - "SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem"
       - "SSL_CERTIFICATE=/etc/ssl/filebeat.pem"
       - "SSL_KEY=/etc/ssl/filebeat-key.pem"
-      - "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-<REDACTED_TELEGRAM_BOT_TOKEN>}"
-      - "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-<REDACTED_TELEGRAM_CHAT_ID>}"
+      - "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is not set in .env (run docker/start.sh)}"
+      - "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is not set in .env (run docker/start.sh)}"
     volumes:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-etc:/var/ossec/etc
@@ -72,7 +70,7 @@ services:
       - wazuh-net
 
   wazuh-dashboard:
-    image: wazuh/wazuh-dashboard:4.9.2
+    image: wazuh/wazuh-dashboard:${WAZUH_VERSION:-4.9.2}
     container_name: wazuh-dashboard
     restart: unless-stopped
     depends_on:
@@ -82,10 +80,10 @@ services:
     environment:
       - "INDEXER_URL=https://wazuh-indexer:9200"
       - "INDEXER_USERNAME=admin"
-      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:-<REDACTED_INDEXER_PASSWORD>}"
+      - "INDEXER_PASSWORD=${INDEXER_PASSWORD:?INDEXER_PASSWORD is not set in .env (run docker/start.sh)}"
       - "WAZUH_API_URL=https://wazuh-manager:55000"
       - "API_USERNAME=wazuh-wui"
-      - "API_PASSWORD=${API_PASSWORD:-<REDACTED_API_PASSWORD>}"
+      - "API_PASSWORD=${API_PASSWORD:?API_PASSWORD is not set in .env (run docker/start.sh)}"
       - "OPENSEARCH_SECURITY_SSL_HTTP_ENABLED=true"
     volumes:
       - ./certs/dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro

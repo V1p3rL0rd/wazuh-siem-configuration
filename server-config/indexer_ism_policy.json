@@ -1,18 +1,11 @@
 {
   "policy": {
-    "description": "Wazuh alerts index lifecycle policy: rollover at 30GB or 30 days, delete after 90 days to prevent disk exhaustion",
+    "description": "Wazuh alerts index lifecycle policy: delete after 90 days (daily indices, no rollover alias) to prevent disk exhaustion",
     "default_state": "hot",
     "states": [
       {
         "name": "hot",
-        "actions": [
-          {
-            "rollover": {
-              "min_index_age": "30d",
-              "min_primary_shard_size": "30gb"
-            }
-          }
-        ],
+        "actions": [],
         "transitions": [
           {
             "state_name": "warm"

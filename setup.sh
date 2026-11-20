@@ -39,43 +39,21 @@ if [ ! -d "${OSSEC_DIR}" ]; then
 fi
 
 ENV_FILE="${SCRIPT_DIR}/.env"
-TELEGRAM_BOT_TOKEN=""
-TELEGRAM_CHAT_ID=""
-INDEXER_PASSWORD=""
+# shellcheck source=lib/env.sh
+source "${SCRIPT_DIR}/lib/env.sh"
 
-# 2. Reading credentials from .env or interactive prompt
-if [ -f "${ENV_FILE}" ]; then
-    TELEGRAM_BOT_TOKEN=$(grep -E '^\s*TELEGRAM_BOT_TOKEN=' "${ENV_FILE}" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ' || true)
-    TELEGRAM_CHAT_ID=$(grep -E '^\s*TELEGRAM_CHAT_ID=' "${ENV_FILE}" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ' || true)
-    INDEXER_PASSWORD=$(grep -E '^\s*INDEXER_PASSWORD=' "${ENV_FILE}" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ' || true)
-fi
-
-if [ -z "${TELEGRAM_BOT_TOKEN}" ] || [[ "${TELEGRAM_BOT_TOKEN}" == *"<"* ]] || [[ "${TELEGRAM_BOT_TOKEN}" == *"ВСТАВЬТЕ"* ]]; then
-    echo -e "\n${YELLOW}=== Настройка учетных данных Telegram ===${NC}"
-    read -r -p "Введите Telegram Bot Token: " TELEGRAM_BOT_TOKEN
-fi
-
-if [ -z "${TELEGRAM_CHAT_ID}" ] || [[ "${TELEGRAM_CHAT_ID}" == *"<"* ]] || [[ "${TELEGRAM_CHAT_ID}" == *"ВСТАВЬТЕ"* ]]; then
-    read -r -p "Введите Telegram Chat ID: " TELEGRAM_CHAT_ID
-fi
-
-if [ -z "${INDEXER_PASSWORD}" ] || [[ "${INDEXER_PASSWORD}" == *"<"* ]] || [[ "${INDEXER_PASSWORD}" == *"ВСТАВЬТЕ"* ]]; then
-    read -r -p "Введите пароль admin от Wazuh Indexer (нажмите Enter, чтобы пропустить): " INDEXER_PASSWORD
-fi
-
-# Securely save .env with strict 600 permissions
-cat << EOFCONF > "${ENV_FILE}"
-# Wazuh SIEM Production Environment File (Root Only)
-TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-INDEXER_PASSWORD=${INDEXER_PASSWORD}
-WAZUH_SERVER_IP=10.100.68.68
-WAZUH_SERVER_FQDN=wazuh.garuda.net
-EOFCONF
+# 2. Single .env: keep valid values, ask only for missing ones (existing keys are never dropped)
+echo -e "\n${YELLOW}=== Настройка параметров (сохраняются в ${ENV_FILE}) ===${NC}"
+env_prompt "${ENV_FILE}" WAZUH_SERVER_IP   "IP-адрес Wazuh Manager" "" plain '^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+env_prompt "${ENV_FILE}" WAZUH_SERVER_FQDN "FQDN Wazuh Manager" "" plain '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
+env_prompt "${ENV_FILE}" TELEGRAM_BOT_TOKEN "Telegram Bot Token" "" secret '^[0-9]+:[A-Za-z0-9_-]+$'
+env_prompt "${ENV_FILE}" TELEGRAM_CHAT_ID   "Telegram Chat ID" "" plain '^-?[0-9]+$'
+env_prompt "${ENV_FILE}" INDEXER_PASSWORD   "Пароль admin Wazuh Indexer (Enter - пропустить, ISM-политика не будет применена)" "" optional
+INDEXER_PASSWORD="${INDEXER_PASSWORD:-}"
 
 chown root:root "${ENV_FILE}"
 chmod 600 "${ENV_FILE}"
-echo -e "${GREEN}[OK] Файл конфигурации .env сохранен и защищен правами 600 (только для root).${NC}"
+echo -e "${GREEN}[OK] Файл .env сохранён с правами 600 (только root).${NC}"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 
@@ -83,6 +61,7 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 echo -e "\n${BLUE}==> 1. Создание резервной копии рабочей конфигурации...${NC}"
 cp "${OSSEC_DIR}/etc/ossec.conf" "${OSSEC_DIR}/etc/ossec.conf.bak_${TIMESTAMP}"
 [ -f "${OSSEC_DIR}/etc/rules/local_rules.xml" ] && cp "${OSSEC_DIR}/etc/rules/local_rules.xml" "${OSSEC_DIR}/etc/rules/local_rules.xml.bak_${TIMESTAMP}"
+[ -f "${OSSEC_DIR}/etc/decoders/local_decoder.xml" ] && cp "${OSSEC_DIR}/etc/decoders/local_decoder.xml" "${OSSEC_DIR}/etc/decoders/local_decoder.xml.bak_${TIMESTAMP}"
 [ -f "${OSSEC_DIR}/etc/local_internal_options.conf" ] && cp "${OSSEC_DIR}/etc/local_internal_options.conf" "${OSSEC_DIR}/etc/local_internal_options.conf.bak_${TIMESTAMP}"
 
 # 4. Clean up any stale .restart lock files from previous crashes
@@ -121,20 +100,6 @@ import sys
 
 bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
 chat_id = os.environ.get('TELEGRAM_CHAT_ID', '').strip()
-
-if not bot_token or not chat_id:
-    # Try reading from .env directly as fallback
-    for env_path in ['/home/sbra-admin/wazuh-siem/.env', '/home/sbra-admin/.env', '.env']:
-        if os.path.exists(env_path):
-            with open(env_path, 'r', encoding='utf-8') as ef:
-                for line in ef:
-                    line = line.strip()
-                    if line.startswith('TELEGRAM_BOT_TOKEN='):
-                        bot_token = line.split('=', 1)[1].strip().strip('"\'')
-                    elif line.startswith('TELEGRAM_CHAT_ID='):
-                        chat_id = line.split('=', 1)[1].strip().strip('"\'')
-            if bot_token and chat_id:
-                break
 
 if not bot_token or not chat_id:
     print("[ERROR] TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не заданы!", file=sys.stderr)
@@ -201,7 +166,14 @@ else
     echo -e "${RED}[FAIL] wazuh-analysisd обнаружил синтаксическую ошибку! Выполняю автоматический откат...${NC}"
     "${OSSEC_DIR}/bin/wazuh-analysisd" -t || true
     cp "${OSSEC_DIR}/etc/ossec.conf.bak_${TIMESTAMP}" "${OSSEC_DIR}/etc/ossec.conf"
-    cp "${OSSEC_DIR}/etc/rules/local_rules.xml.bak_${TIMESTAMP}" "${OSSEC_DIR}/etc/rules/local_rules.xml"
+    for f in rules/local_rules.xml decoders/local_decoder.xml; do
+        if [ -f "${OSSEC_DIR}/etc/${f}.bak_${TIMESTAMP}" ]; then
+            cp "${OSSEC_DIR}/etc/${f}.bak_${TIMESTAMP}" "${OSSEC_DIR}/etc/${f}"
+        fi
+    done
+    if [ -f "${OSSEC_DIR}/etc/local_internal_options.conf.bak_${TIMESTAMP}" ]; then
+        cp "${OSSEC_DIR}/etc/local_internal_options.conf.bak_${TIMESTAMP}" "${OSSEC_DIR}/etc/local_internal_options.conf"
+    fi
     exit 1
 fi
 
@@ -263,18 +235,22 @@ cat << EOFTALERT > "${TEST_ALERT_FILE}"
   "agent": {
     "id": "000",
     "name": "wazuh-server",
-    "ip": "10.100.68.68"
+    "ip": "${WAZUH_SERVER_IP}"
   },
   "full_log": "Production deployment verification: baseline monitoring, queue tuning, disk optimization, and Telegram alerting enabled."
 }
 EOFTALERT
 
-"${OSSEC_DIR}/integrations/custom-telegram" "${TEST_ALERT_FILE}" "${TELEGRAM_CHAT_ID}" "${TELEGRAM_BOT_TOKEN}" || true
+TG_OK=true
+"${OSSEC_DIR}/integrations/custom-telegram" "${TEST_ALERT_FILE}" "${TELEGRAM_CHAT_ID}" "${TELEGRAM_BOT_TOKEN}" || TG_OK=false
 rm -f "${TEST_ALERT_FILE}"
+if [ "${TG_OK}" != true ]; then
+    echo -e "${YELLOW}[WARN] Тестовое сообщение в Telegram не отправлено: проверьте токен/Chat ID и доступ к api.telegram.org.${NC}"
+fi
 
 echo -e "\n${GREEN}======================================================================${NC}"
 echo -e "${BOLD}${GREEN}  ✓ Сервер Wazuh SIEM полностью настроен и функционирует!             ${NC}"
 echo -e "${GREEN}  ✓ Веб-интерфейс Dashboard синхронизирован с API (порт 55000)        ${NC}"
 echo -e "${GREEN}  ✓ Файл .env закрыт правами 600 (root only)                          ${NC}"
-echo -e "${GREEN}  ✓ В Telegram отправлено подтверждение успешной готовности!          ${NC}"
+echo -e "${GREEN}  ✓ Тестовое сообщение в Telegram отправлено (см. предупреждения выше) ${NC}"
 echo -e "${GREEN}======================================================================${NC}"

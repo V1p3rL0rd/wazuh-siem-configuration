@@ -234,7 +234,8 @@ def main():
 
     # Fallback: check .env files directly if arguments did not supply token or chat_id
     if not bot_token or not chat_id:
-        for env_path in ['/home/sbra-admin/wazuh-siem/.env', '/home/sbra-admin/.env', '/var/ossec/etc/.env', './.env']:
+        env_candidates = [os.environ.get("WAZUH_ENV_FILE", ""), '/var/ossec/etc/.env', './.env']
+        for env_path in filter(None, env_candidates):
             if os.path.exists(env_path):
                 try:
                     with open(env_path, 'r', encoding='utf-8') as ef:
@@ -276,7 +277,8 @@ def main():
         sys.exit(0)
 
     formatted_msg = format_telegram_message(alert)
-    send_telegram_alert(bot_token, chat_id, formatted_msg)
+    if not send_telegram_alert(bot_token, chat_id, formatted_msg):
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

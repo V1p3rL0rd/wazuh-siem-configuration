@@ -7,7 +7,8 @@
 set -euo pipefail
 
 CERTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-ENV_FILE="${CERTS_DIR}/../.env"
+ENV_FILE="${CERTS_DIR}/../../.env"
+[ -f "${ENV_FILE}" ] || ENV_FILE="${CERTS_DIR}/../.env"
 
 # Load SAN variables from .env if present
 WAZUH_SERVER_IP="127.0.0.1"

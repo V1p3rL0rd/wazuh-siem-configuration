@@ -49,21 +49,15 @@ sudo bash setup.sh
 8. Dispatches an end-to-end verification alert directly to Telegram.
 
 ### Step 2.2: Environment Configuration (.env)
-Copy `.env.example` to `.env` and configure your credentials:
+All site-specific values (manager IP/FQDN, Telegram credentials, passwords, versions) live in a single `.env` at the repository root. You do not need to edit it by hand: `sudo bash setup.sh` (host install) and `docker/start.sh` (Docker) ask only for values that are missing or still placeholders, validate them and save the file with `chmod 600`. Existing keys are never removed.
+
+To pre-seed the file (e.g. for unattended runs, where missing values are a hard error):
 ```bash
 cp .env.example .env
 chmod 600 .env
-nano .env
 ```
 
-Required variables for Wazuh SIEM:
-```ini
-TELEGRAM_BOT_TOKEN="123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ"
-TELEGRAM_CHAT_ID="-1001234567890"
-INDEXER_PASSWORD="<REDACTED_INDEXER_PASSWORD>"
-WAZUH_SERVER_IP="10.100.68.68"
-WAZUH_SERVER_FQDN="wazuh.garuda.net"
-```
+Variables: `WAZUH_SERVER_IP`, `WAZUH_SERVER_FQDN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `INDEXER_PASSWORD`, `API_PASSWORD` (Docker), `INDEXER_JVM_HEAP` (Docker, default `2g`), `WAZUH_VERSION` (default `4.9.2`, also used to pin the agent version). Values must not contain whitespace, quotes, `\`, `$` or `#`.
 
 ---
 
@@ -72,7 +66,7 @@ WAZUH_SERVER_FQDN="wazuh.garuda.net"
 ### 3.1 Ubuntu Server (Linux)
 Run on target Ubuntu 20.04 / 22.04 / 24.04 LTS servers:
 ```bash
-sudo bash agent-configs/linux/install-ubuntu.sh wazuh.garuda.net
+sudo bash agent-configs/linux/install-ubuntu.sh <WAZUH_MANAGER_FQDN_OR_IP>
 ```
 * **Capabilities enabled:**
   * Automated installation from the official Wazuh repository.
@@ -84,7 +78,7 @@ sudo bash agent-configs/linux/install-ubuntu.sh wazuh.garuda.net
 Run in an elevated Administrator PowerShell session:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
-.\agent-configs\windows\install-windows.ps1 -WazuhManager "wazuh.garuda.net" -InstallSysmon
+.\agent-configs\windows\install-windows.ps1 -WazuhManager "<WAZUH_MANAGER_FQDN_OR_IP>" -InstallSysmon
 ```
 * **Capabilities enabled:**
   * Silent unattended MSI deployment with automated manager registration.

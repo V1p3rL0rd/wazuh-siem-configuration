@@ -75,13 +75,14 @@ flowchart TD
 ```text
 .
 ├── setup.sh                         # Master turnkey installer & self-healing configuration script
-├── .env.example                     # Environment template for credentials
+├── lib/env.sh                       # Shared helper: reads/prompts/saves values in the single .env
+├── .env.example                     # Environment template (setup.sh / docker/start.sh prompt for missing values)
 ├── .gitignore                       # Safeguard preventing .env, keys, and logs from Git commits
 ├── README.md                        # Documentation and architecture guide
 ├── server-config/                   # Reference server configurations
 │   ├── ossec.conf                   # Hardened Wazuh Manager configuration
 │   ├── local_internal_options.conf  # High-throughput internal queue settings
-│   └── indexer_ism_policy.json      # OpenSearch ISM retention & rollover policy
+│   └── indexer_ism_policy.json      # OpenSearch ISM retention policy (delete after 90 days)
 ├── rules-and-decoders/              # Custom detection & drop rules (IDs 100000–120000)
 │   ├── local_rules.xml              # Baseline Linux & Windows security rules
 │   ├── local_decoder.xml            # Custom auxiliary log decoders
@@ -119,7 +120,7 @@ sudo bash setup.sh
 ```
 
 **What the script does automatically:**
-1. Securely prompts for your Telegram Bot Token and Chat ID (if not already set in `.env`).
+1. Prompts for any missing/placeholder values (manager IP/FQDN, Telegram Bot Token and Chat ID, optional Indexer password) and stores them in `.env`, keeping all other keys intact.
 2. Enforces strict `root:root (600)` file permissions on `.env`.
 3. Creates timestamped backups of active server configurations.
 4. Cleans up any stale crash lock files (`.restart`) to prevent API stalls.
@@ -135,7 +136,7 @@ sudo bash setup.sh
 #### Ubuntu Server (Linux)
 Run on the target Ubuntu node (20.04 / 22.04 / 24.04 LTS):
 ```bash
-sudo bash agent-configs/linux/install-ubuntu.sh wazuh.garuda.net
+sudo bash agent-configs/linux/install-ubuntu.sh <WAZUH_MANAGER_FQDN_OR_IP>
 ```
 *Installs the agent, deploys CIS benchmark `auditd` rules, activates real-time FIM for `/etc`, `/boot`, `/bin`, `/sbin`, and configures automatic noise suppression.*
 
@@ -143,7 +144,7 @@ sudo bash agent-configs/linux/install-ubuntu.sh wazuh.garuda.net
 Run in an elevated PowerShell session:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
-.\agent-configs\windows\install-windows.ps1 -WazuhManager "wazuh.garuda.net"
+.\agent-configs\windows\install-windows.ps1 -WazuhManager "<WAZUH_MANAGER_FQDN_OR_IP>"
 ```
 *Installs the official MSI agent, configures targeted XPath queries on `Security`, `System`, and `PowerShell` channels, and starts the service.*
 
