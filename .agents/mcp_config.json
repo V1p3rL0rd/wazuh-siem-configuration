@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "netbox-readonly": {
+      "command": "npx",
+      "args": ["-y", "@example/netbox-mcp-server"],
+      "env": {
+        "NETBOX_URL": "https://netbox.internal.local",
+        "NETBOX_TOKEN": "${NETBOX_RO_TOKEN}",
+        "NETBOX_READ_ONLY": "true"
+      }
+    },
+    "prometheus": {
+      "command": "npx",
+      "args": ["-y", "@example/prometheus-mcp-server"],
+      "env": {
+        "PROMETHEUS_URL": "https://prometheus.internal.local"
+      }
+    }
+  }
+}

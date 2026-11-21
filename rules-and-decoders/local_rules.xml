@@ -1,0 +1,173 @@
+<!-- Baseline Security Detection Rules for Linux and Windows Servers -->
+<!-- File: /var/ossec/etc/rules/local_rules.xml -->
+<!-- Rule ID Range: 100000 - 120000 (Compliant with SecOps Guidelines) -->
+
+<group name="local,custom_baseline,">
+
+  <!-- ===================================================================== -->
+  <!-- 1. LINUX / UBUNTU SERVER BASELINE MONITORING                          -->
+  <!-- ===================================================================== -->
+
+  <!-- Critical Identity and Privilege Files Tampering (FIM) -->
+  <rule id="100001" level="12">
+    <if_group>syscheck</if_group>
+    <match>/etc/shadow|/etc/gshadow|/etc/sudoers|/etc/sudoers.d/|/etc/pam.d/</match>
+    <description>Critical authentication file modified (FIM): $(file)</description>
+    <mitre>
+      <id>T1078</id>
+      <id>T1548.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Tampering with Core System Binaries -->
+  <rule id="100002" level="13">
+    <if_group>syscheck</if_group>
+    <match>^/bin/|^/sbin/|^/usr/bin/|^/usr/sbin/</match>
+    <description>Core system binary altered or replaced: $(file)</description>
+    <mitre>
+      <id>T1036</id>
+      <id>T1574</id>
+    </mitre>
+  </rule>
+
+  <!-- Audit Log Destruction / Defense Evasion on Linux -->
+  <rule id="100003" level="12">
+    <if_group>syslog|audit</if_group>
+    <match>rm -rf /var/log|shred /var/log|truncate -s 0 /var/log|journalctl --vacuum</match>
+    <description>Audit log tampering or destruction detected on Linux</description>
+    <mitre>
+      <id>T1070.002</id>
+    </mitre>
+  </rule>
+
+  <!-- Linux Sudoers or Passwd Modification -->
+  <rule id="100004" level="11">
+    <if_group>audit|syslog</if_group>
+    <match>key=sudoers_change|key=passwd_change</match>
+    <description>Privileged identity configuration modified (/etc/passwd or /etc/sudoers)</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+  </rule>
+
+  <!-- Kernel Module Insertion (Rootkit / Driver Persistence) -->
+  <rule id="100005" level="13">
+    <if_group>audit</if_group>
+    <match>key=kernel_modules|init_module|finit_module</match>
+    <description>Kernel module loaded or manipulated (possible rootkit activity)</description>
+    <mitre>
+      <id>T1547.006</id>
+    </mitre>
+  </rule>
+
+  <!-- Linux SSH Brute-Force Leading to Successful Logon -->
+  <rule id="100006" level="14">
+    <if_sid>5715</if_sid>
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <description>CRITICAL: Possible successful SSH logon following brute-force attack from $(srcip)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- 2. WINDOWS SERVER BASELINE MONITORING                                 -->
+  <!-- ===================================================================== -->
+
+  <!-- Windows Audit Log Cleared (Security Event ID 1102 / System 104) -->
+  <rule id="100010" level="14">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^1102$|^104$</field>
+    <description>CRITICAL: Windows Security or System audit log was cleared (Defense Evasion)</description>
+    <mitre>
+      <id>T1070.001</id>
+    </mitre>
+  </rule>
+
+  <!-- User Added to Local Administrators or Privileged Group (Event ID 4728 / 4732) -->
+  <rule id="100011" level="12">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4728$|^4732$|^4756$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)Administrators|Администраторы</field>
+    <description>User added to local Administrators security group: $(win.eventdata.targetUserName)</description>
+    <mitre>
+      <id>T1098</id>
+      <id>T1078.002</id>
+    </mitre>
+  </rule>
+
+  <!-- New Windows Service Installed (Event ID 7045 / 4697) -->
+  <rule id="100012" level="10">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^7045$|^4697$</field>
+    <description>New Windows service was installed on $(win.system.computer): $(win.eventdata.serviceName)</description>
+    <mitre>
+      <id>T1543.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Obfuscated or Malicious PowerShell Script Execution (Event ID 4104) -->
+  <rule id="100014" level="12">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)Invoke-Expression|IEX|DownloadString|WebClient|Net\.WebClient|EncodedCommand|-enc\s|FromBase64String|Bypass|-ExecutionPolicy\s+Bypass</field>
+    <description>Suspicious obfuscated or payload-downloading PowerShell command executed</description>
+    <mitre>
+      <id>T1059.001</id>
+      <id>T1027</id>
+    </mitre>
+  </rule>
+
+  <!-- Suspicious Living-off-the-Land Binaries (LOLBins) Execution -->
+  <rule id="100015" level="11">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^1$|^4688$</field>
+    <field name="win.eventdata.newProcessName|win.eventdata.image" type="pcre2">(?i)(certutil|bitsadmin|vssadmin|wmic|regsvr32|mshta|rundll32)\.exe</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)urlcache|decode|delete\s+shadows|shadowstorage|/i:http|javascript:|vbscript:</field>
+    <description>Suspicious LOLBin execution for payload download or shadow copy deletion</description>
+    <mitre>
+      <id>T1218</id>
+      <id>T1490</id>
+    </mitre>
+  </rule>
+
+  <!-- Windows Multiple Failed Logons (Brute Force Event ID 4625) -->
+  <rule id="100016" level="11" frequency="8" timeframe="120">
+    <if_matched_sid>60122</if_matched_sid>
+    <same_source_ip />
+    <description>Potential Windows logon brute-force attack detected from source IP: $(win.eventdata.ipAddress)</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+  </rule>
+
+  <!-- ===================================================================== -->
+  <!-- 3. LOG NOISE REDUCTION & OPTIMIZATION (DROP BENIGN SPAM EVENTS)       -->
+  <!-- ===================================================================== -->
+
+  <!-- Drop benign Windows Filtering Platform connection noise (5156, 5158) -->
+  <rule id="100020" level="0">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^5156$|^5158$</field>
+    <description>Noise Reduction: Suppress Windows Filtering Platform permit packets</description>
+  </rule>
+
+  <!-- Drop benign Windows Scheduled Task heartbeat starts/stops (4688 spam from svchost) -->
+  <rule id="100021" level="0">
+    <if_sid>60000,60100</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.parentProcessName" type="pcre2">(?i)svchost\.exe</field>
+    <field name="win.eventdata.newProcessName" type="pcre2">(?i)taskhostw\.exe|conhost\.exe</field>
+    <description>Noise Reduction: Suppress Windows benign background task execution</description>
+  </rule>
+
+  <!-- Drop Linux cron session open/close noise -->
+  <rule id="100022" level="0">
+    <if_sid>5501,5502</if_sid>
+    <match>CRON|cron:session</match>
+    <description>Noise Reduction: Suppress frequent cron session open/close syslog spam</description>
+  </rule>
+
+</group>

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Wazuh integration executable wrapper for Telegram alerts
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SCRIPT="${DIR}/custom-telegram.py"
+[ ! -f "${SCRIPT}" ] && SCRIPT="/var/ossec/integrations/custom-telegram.py"
+
+# Prefer Wazuh embedded Python 3, fallback to system python3
+if [ -x "/var/ossec/framework/python/bin/python3" ]; then
+    PYTHON_BIN="/var/ossec/framework/python/bin/python3"
+else
+    PYTHON_BIN="$(command -v python3 || echo /usr/bin/python3)"
+fi
+
+exec "${PYTHON_BIN}" "${SCRIPT}" "$@"

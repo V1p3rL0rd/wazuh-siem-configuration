@@ -1,0 +1,34 @@
+# ==============================================================================
+# Git Ignore Configuration for Wazuh SIEM Repository
+# Prevents accidental commits of private credentials, certificates, and runtime data
+# ==============================================================================
+
+# Environment files with real secrets
+.env
+*.env.local
+
+# SSL/TLS Certificates and Private Keys
+*.pem
+*.key
+*.csr
+*.crt
+*.cert
+
+# Cache and temporary runtime files
+*cache.json
+/tmp/
+*.tmp
+*.log
+
+# OS-generated metadata
+.DS_Store
+Thumbs.db
+
+# Agent installer temp downloads
+Sysmon.zip
+wazuh-agent*.msi
+wazuh-agent*.deb
+
+# Agent and internal metadata
+GEMINI.md
+AGENTS.md

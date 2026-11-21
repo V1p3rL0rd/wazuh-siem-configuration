@@ -1,0 +1,12 @@
+<!-- Wazuh Manager - Telegram Integration Configuration -->
+<!-- Add inside the <ossec_config> block of /var/ossec/etc/ossec.conf -->
+
+<ossec_config>
+  <integration>
+    <name>custom-telegram</name>
+    <hook_url>https://api.telegram.org/bot<REDACTED_TELEGRAM_BOT_TOKEN>/sendMessage</hook_url>
+    <api_key><REDACTED_TELEGRAM_CHAT_ID></api_key>
+    <level>10</level>
+    <alert_format>json</alert_format>
+  </integration>
+</ossec_config>
