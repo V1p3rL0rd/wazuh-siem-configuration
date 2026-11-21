@@ -1,0 +1,1 @@
+{"win": {"system": {"providerName": "Microsoft-Windows-Eventlog", "eventID": "1102", "channel": "Security", "severityValue": "INFORMATION", "computer": "SRV-01.example.local", "systemTime": "2026-11-21T10:00:00.000000000Z", "level": "0"}, "eventdata": {"subjectUserName": "testadmin", "subjectDomainName": "EXAMPLE"}}}

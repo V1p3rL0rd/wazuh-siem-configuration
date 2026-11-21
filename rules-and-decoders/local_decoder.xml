@@ -1,0 +1,15 @@
+<!-- Local Decoders for Wazuh SIEM -->
+<!-- File: /var/ossec/etc/decoders/local_decoder.xml -->
+<!-- auditd keys (key="...") are already extracted by the built-in auditd decoder as audit.key. -->
+
+<!-- Example Custom Application Decoder (key=value) -->
+<!-- Input: custom-app: OK action=login user=alice src_ip=192.0.2.50 -->
+<decoder name="custom-app">
+  <prematch>^custom-app: </prematch>
+</decoder>
+
+<decoder name="custom-app-fields">
+  <parent>custom-app</parent>
+  <regex offset="after_parent">^(\S+) action=(\S+) user=(\S+) src_ip=(\S+)</regex>
+  <order>status, action, srcuser, srcip</order>
+</decoder>

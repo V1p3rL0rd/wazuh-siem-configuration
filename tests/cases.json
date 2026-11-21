@@ -1,0 +1,299 @@
+{
+  "_comment": "Each case runs in its own wazuh-logtest session. 'expect' checks the LAST event, 'expect_any' passes if ANY event matches, 'expect_none' fails if any event matches. Cases tagged 'eventchannel' need rule 60000 to accept the generic json decoder (as in Wazuh's own ruleset tests); on a production manager run with --skip-tag eventchannel.",
+  "cases": [
+    {
+      "name": "linux: successful SSH logon after brute force -> 100006",
+      "events": [
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50001"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50002"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50003"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50004"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50005"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50006"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50007"
+          }
+        },
+        {
+          "file": "samples/ssh_failed.log",
+          "replace": {
+            "port 50001": "port 50008"
+          }
+        },
+        {
+          "file": "samples/ssh_accepted.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100006",
+        "level": 14
+      }
+    },
+    {
+      "name": "linux: SSH logon without preceding failures is not escalated",
+      "events": [
+        {
+          "file": "samples/ssh_accepted.log"
+        }
+      ],
+      "expect_none": {
+        "rule_id": "100006"
+      }
+    },
+    {
+      "name": "linux: audit log destruction -> 100003",
+      "events": [
+        {
+          "file": "samples/linux_log_wipe.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100003",
+        "level": 12
+      }
+    },
+    {
+      "name": "linux: auditd sudoers change -> 100004",
+      "events": [
+        {
+          "file": "samples/auditd_sudoers.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100004",
+        "level": 11,
+        "fields": {
+          "audit.key": "sudoers_change"
+        }
+      }
+    },
+    {
+      "name": "linux: auditd kernel module -> 100005",
+      "events": [
+        {
+          "file": "samples/auditd_kernel_module.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100005",
+        "level": 13
+      }
+    },
+    {
+      "name": "linux: cron session noise is not alerted (level 0)",
+      "events": [
+        {
+          "file": "samples/cron_session.log"
+        }
+      ],
+      "expect": {
+        "level": 0,
+        "alert": false
+      }
+    },
+    {
+      "name": "decoder: custom-app example",
+      "events": [
+        {
+          "file": "samples/custom_app.log"
+        }
+      ],
+      "expect": {
+        "decoder": "custom-app",
+        "fields": {
+          "action": "login",
+          "srcuser": "testuser",
+          "srcip": "192.0.2.50"
+        }
+      }
+    },
+    {
+      "name": "windows: audit log cleared -> 100010",
+      "events": [
+        {
+          "file": "samples/win_1102_log_cleared.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100010",
+        "level": 14
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: member added to Administrators -> 100011",
+      "events": [
+        {
+          "file": "samples/win_4732_admin_group.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100011",
+        "level": 12
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: new service installed -> 100012",
+      "events": [
+        {
+          "file": "samples/win_7045_service.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100012",
+        "level": 10
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: malicious PowerShell 4104 -> 100014",
+      "events": [
+        {
+          "file": "samples/win_4104_powershell.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100014",
+        "level": 12
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: LOLBin via Sysmon EID 1 -> 100015",
+      "events": [
+        {
+          "file": "samples/win_sysmon1_certutil.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100015",
+        "level": 11
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: LOLBin via 4688 -> 100017",
+      "events": [
+        {
+          "file": "samples/win_4688_certutil.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100017",
+        "level": 11
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: 8 failed logons from one IP -> 100016",
+      "events": [
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        },
+        {
+          "file": "samples/win_4625_failed_logon.log"
+        }
+      ],
+      "expect_any": {
+        "rule_id": "100016",
+        "level": 11
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: WFP 5156 noise suppressed -> 100020",
+      "events": [
+        {
+          "file": "samples/win_5156_wfp.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100020",
+        "level": 0
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    },
+    {
+      "name": "windows: benign svchost->taskhostw 4688 suppressed -> 100021",
+      "events": [
+        {
+          "file": "samples/win_4688_benign.log"
+        }
+      ],
+      "expect": {
+        "rule_id": "100021",
+        "level": 0
+      },
+      "tags": [
+        "eventchannel"
+      ]
+    }
+  ]
+}

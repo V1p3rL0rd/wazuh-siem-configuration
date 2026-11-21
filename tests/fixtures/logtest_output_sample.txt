@@ -1,0 +1,39 @@
+Starting wazuh-logtest v4.14.5
+Type one log per line
+
+
+**Phase 1: Completed pre-decoding.
+	full event: 'Nov 21 10:17:01 srv-ubuntu CRON[5678]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)'
+	timestamp: 'Nov 21 10:17:01'
+	hostname: 'srv-ubuntu'
+	program_name: 'CRON'
+
+**Phase 2: Completed decoding.
+	name: 'pam'
+	parent: 'pam'
+	dstuser: 'root(uid=0)'
+
+**Phase 3: Completed filtering (rules).
+	id: '100022'
+	level: '0'
+	description: 'Noise Reduction: Suppress frequent cron session open/close syslog spam'
+	groups: '['local', 'custom_baseline']'
+	firedtimes: '1'
+	mail: 'False'
+
+**Phase 1: Completed pre-decoding.
+	full event: '{"win": {"system": {"eventID": "1102"}}}'
+
+**Phase 2: Completed decoding.
+	name: 'json'
+	win.system.eventID: '1102'
+
+**Phase 3: Completed filtering (rules).
+	id: '100010'
+	level: '14'
+	description: 'CRITICAL: Windows Security or System audit log was cleared (Defense Evasion)'
+	groups: '['local', 'custom_baseline']'
+	firedtimes: '1'
+	mail: 'True'
+**Alert to be generated.
+

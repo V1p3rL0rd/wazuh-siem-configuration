@@ -1,0 +1,71 @@
+<!-- Optional Active Directory Domain Services (AD DS) detection rules.
+     Enable on the manager:  sudo cp rules-and-decoders/ad_ds_rules.xml.optional /var/ossec/etc/rules/ad_ds_rules.xml
+     Requires domain controller agents with agent-configs/windows/ossec-dc.conf. Rule IDs 100030 - 100039. -->
+<group name="local,ad_ds_detection,">
+
+  <!-- DCSync Attack: Non-DC account requesting AD Directory Replication (Event ID 4662) -->
+  <rule id="100030" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.properties" type="pcre2">(?i)1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|89e4b0e0-44d3-11d2-9032-00c04fc2dcd2</field>
+    <field name="win.eventdata.subjectUserName" negate="yes" type="pcre2">.*\$</field>
+    <description>CRITICAL: Potential DCSync attack detected! Non-machine account $(win.eventdata.subjectUserName) requested AD replication rights</description>
+    <mitre>
+      <id>T1003.006</id>
+    </mitre>
+  </rule>
+
+  <!-- Kerberoasting: TGS Ticket Request with RC4 Encryption (Event ID 4769) -->
+  <rule id="100031" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <field name="win.eventdata.serviceName" negate="yes" type="pcre2">(?i)krbtgt|\$$</field>
+    <description>Potential Kerberoasting attack: Kerberos TGS requested with legacy RC4 (0x17) encryption for service: $(win.eventdata.serviceName)</description>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+  </rule>
+
+  <!-- AS-REP Roasting: TGT requested for an account without Kerberos pre-authentication (4768, PreAuthType 0) -->
+  <rule id="100032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4768$</field>
+    <field name="win.eventdata.preAuthType">^0$</field>
+    <field name="win.eventdata.status">^0x0$</field>
+    <description>Possible AS-REP Roasting: TGT issued without pre-authentication for $(win.eventdata.targetUserName) from $(win.eventdata.ipAddress)</description>
+    <mitre>
+      <id>T1558.004</id>
+    </mitre>
+  </rule>
+
+  <!-- NTLM authentication with a wrong password (4776, 0xC000006A): building block, no alert -->
+  <rule id="100035" level="3">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4776$</field>
+    <field name="win.eventdata.status">^0xC000006A$</field>
+    <description>NTLM authentication failed (wrong password) for $(win.eventdata.targetUserName)</description>
+    <group>authentication_failed,</group>
+  </rule>
+
+  <!-- NTLM password spraying / brute force: 10 failures within 2 minutes -->
+  <rule id="100033" level="11" frequency="10" timeframe="120">
+    <if_matched_sid>100035</if_matched_sid>
+    <description>NTLM password spray or brute-force attack detected on Domain Controller</description>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Active Directory Object Modification / SID History Injection (Event ID 5136) -->
+  <rule id="100034" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^5136$</field>
+    <field name="win.eventdata.attributeLDAPDisplayName" type="pcre2">(?i)sIDHistory|adminCount</field>
+    <description>Suspicious Active Directory attribute modification: $(win.eventdata.attributeLDAPDisplayName) on $(win.eventdata.objectDN)</description>
+    <mitre>
+      <id>T1134.005</id>
+    </mitre>
+  </rule>
+
+</group>

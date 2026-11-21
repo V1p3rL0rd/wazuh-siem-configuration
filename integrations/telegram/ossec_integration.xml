@@ -1,0 +1,12 @@
+<!-- Wazuh Manager - Telegram Integration Configuration -->
+<!-- setup.sh adds this block automatically. Manual setup: replace TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID -->
+
+<ossec_config>
+  <integration>
+    <name>custom-telegram</name>
+    <hook_url>https://api.telegram.org/botTELEGRAM_BOT_TOKEN/sendMessage</hook_url>
+    <api_key>TELEGRAM_CHAT_ID</api_key>
+    <level>10</level>
+    <alert_format>json</alert_format>
+  </integration>
+</ossec_config>

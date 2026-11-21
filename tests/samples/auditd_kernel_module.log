@@ -1,0 +1,1 @@
+type=SYSCALL msg=audit(1763719300.456:4600): arch=c000003e syscall=313 success=yes exit=0 a0=3 a1=55d1c0a0b2a0 a2=0 a3=0 items=0 ppid=1000 pid=1100 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=1 comm="modprobe" exe="/usr/bin/kmod" subj=unconfined key="kernel_modules"

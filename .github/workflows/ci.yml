@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: ShellCheck
+        run: |
+          shellcheck -S warning setup.sh lib/env.sh agent-configs/linux/install-ubuntu.sh \
+            integrations/telegram/custom-telegram tools/*.sh server-config/*.sh
+
+      - name: XML well-formedness
+        run: |
+          sudo apt-get install -y -qq libxml2-utils >/dev/null
+          for f in rules-and-decoders/*.xml rules-and-decoders/*.optional server-config/ossec.conf \
+                   integrations/telegram/ossec_integration.xml agent-configs/*/*.conf agent-configs/windows/sysmonconfig.xml; do
+            # Wazuh files may have several top-level elements; agent templates contain the <WAZUH_MANAGER_IP> placeholder
+            { echo '<root>'; sed 's/<WAZUH_MANAGER_IP>/192.0.2.7/' "$f"; echo '</root>'; } | xmllint --noout - && echo "OK  $f"
+          done
+
+      - name: JSON
+        run: python3 -m json.tool server-config/indexer_ism_policy.json >/dev/null && python3 -m json.tool tests/cases.json >/dev/null
+
+      - name: PowerShell syntax
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/agent-configs/windows/install-windows.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+      - name: Python unit tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  wazuh:
+    name: Rules and configuration on a real Wazuh manager (Docker)
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      WAZUH_VERSION: "4.14.5"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Start wazuh-manager ${{ env.WAZUH_VERSION }}
+        run: |
+          docker run -d --name wazuh --hostname wazuh-manager "wazuh/wazuh-manager:${WAZUH_VERSION}"
+          for i in $(seq 1 60); do
+            docker exec wazuh /var/ossec/bin/wazuh-control status 2>/dev/null | grep -q 'wazuh-analysisd is running' && exit 0
+            sleep 5
+          done
+          docker logs --tail 100 wazuh; exit 1
+
+      - name: Apply configuration the way setup.sh does
+        run: |
+          PY=/var/ossec/framework/python/bin/python3
+          docker cp . wazuh:/opt/repo
+          # a syslog <remote> must stay without queue_size, otherwise wazuh-remoted refuses to start
+          printf '%s\n' '<ossec_config>' '  <remote>' '    <connection>syslog</connection>' '    <port>514</port>' \
+            '    <protocol>tcp</protocol>' '    <allowed-ips>192.0.2.5/32</allowed-ips>' '  </remote>' '</ossec_config>' > /tmp/syslog-remote.xml
+          docker cp /tmp/syslog-remote.xml wazuh:/tmp/syslog-remote.xml
+          docker exec wazuh sh -c 'cat /tmp/syslog-remote.xml >> /var/ossec/etc/ossec.conf'
+          docker exec -e TELEGRAM_BOT_TOKEN=123456:TEST_TOKEN -e TELEGRAM_CHAT_ID=-100123 wazuh \
+            $PY /opt/repo/lib/ossec_conf.py ossec --conf /var/ossec/etc/ossec.conf --out /var/ossec/etc/ossec.conf
+          docker exec wazuh $PY /opt/repo/lib/ossec_conf.py internal-options --conf /var/ossec/etc/local_internal_options.conf \
+            --source /opt/repo/server-config/local_internal_options.conf --out /var/ossec/etc/local_internal_options.conf
+          docker exec wazuh cp /opt/repo/rules-and-decoders/local_rules.xml /var/ossec/etc/rules/local_rules.xml
+          docker exec wazuh cp /opt/repo/rules-and-decoders/local_decoder.xml /var/ossec/etc/decoders/local_decoder.xml
+          docker exec wazuh cp /opt/repo/rules-and-decoders/ad_ds_rules.xml.optional /var/ossec/etc/rules/ad_ds_rules.xml
+          docker exec wazuh sh -c 'cp /opt/repo/integrations/telegram/custom-telegram* /var/ossec/integrations/'
+          docker exec wazuh chown -R root:wazuh /var/ossec/etc/rules /var/ossec/etc/decoders /var/ossec/integrations
+
+      - name: Let Windows rules accept logtest JSON (test container only, as Wazuh's own ruleset tests do)
+        run: |
+          docker exec wazuh /var/ossec/framework/python/bin/python3 -c "
+          import re; p='/var/ossec/ruleset/rules/0575-win-base_rules.xml'; s=open(p).read()
+          s=re.sub(r'(<rule id=\"60000\".*?)<category>ossec</category>\s*<decoded_as>windows_eventchannel</decoded_as>', r'\1<decoded_as>json</decoded_as>', s, count=1, flags=re.S)
+          assert '<decoded_as>json</decoded_as>' in s; open(p,'w').write(s)"
+
+      - name: Configuration tests (wazuh-analysisd -t, wazuh-remoted -t)
+        run: |
+          docker exec wazuh /var/ossec/bin/wazuh-analysisd -t
+          docker exec wazuh /var/ossec/bin/wazuh-remoted -t
+
+      - name: Restart and check daemons
+        run: |
+          docker exec wazuh /var/ossec/bin/wazuh-control restart
+          for i in $(seq 1 60); do
+            s="$(docker exec wazuh /var/ossec/bin/wazuh-control status 2>/dev/null || true)"
+            if grep -q 'wazuh-analysisd is running' <<<"$s" && grep -q 'wazuh-remoted is running' <<<"$s"; then echo "$s"; exit 0; fi
+            sleep 5
+          done
+          echo "$s"; exit 1
+
+      - name: Rules through wazuh-logtest
+        run: |
+          docker exec wazuh /var/ossec/framework/python/bin/python3 /opt/repo/tests/run_logtest.py \
+            --logtest /var/ossec/bin/wazuh-logtest --cases /opt/repo/tests/cases.json -v
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          docker exec wazuh tail -n 100 /var/ossec/logs/ossec.log || true
+          docker logs --tail 100 wazuh || true
